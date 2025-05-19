@@ -33,48 +33,89 @@ public class OrderService {
 
 
   
+	/*
+	 * public Order createOrderWithLines(Order order, List<OrderLine> lines, Long
+	 * userId) { // Récupérer l'utilisateur User user =
+	 * userRepository.findById(userId) .orElseThrow(() -> new
+	 * RuntimeException("User not found"));
+	 * 
+	 * // Associer l'utilisateur à la commande order.setUser(user);
+	 * order.setStatus("pending"); order.setQuantite(0); order.setTotal(0.0);
+	 * 
+	 * // Enregistrer l'ordre d'abord pour obtenir un ID Order savedOrder =
+	 * orderRepository.save(order);
+	 * 
+	 * double total = 0.0; int totalQuantite = 0; for (OrderLine line : lines) { if
+	 * (line.getArticle() == null || line.getArticle().getId() == null) { throw new
+	 * RuntimeException("Article ID is required for each order line."); }
+	 * 
+	 * Article article = articleRepository.findById(line.getArticle().getId())
+	 * .orElseThrow(() -> new RuntimeException("Article not found"));
+	 * 
+	 * line.setArticle(article); line.setOrder(savedOrder);
+	 * 
+	 * total += line.getQuantity() * article.getPrix(); totalQuantite +=
+	 * line.getQuantity();
+	 * 
+	 * orderLineRepository.save(line); savedOrder.getOrderLines().add(line); }
+	 * 
+	 * 
+	 * savedOrder.setTotal(total); savedOrder.setQuantite(totalQuantite);
+	 * 
+	 * return orderRepository.save(savedOrder); // mise à jour avec les totaux et
+	 * lignes }
+	 */
+    public Order createOrderWithLines(Order order, List<OrderLine> lines, Long userId) {
+        // Récupérer l'utilisateur
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-        public Order createOrderWithLines(Order order, List<OrderLine> lines, Long userId) {
-            // Récupérer l'utilisateur
-            User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Initialiser la commande
+        order.setUser(user);
+        order.setStatus("pending");
+        order.setQuantite(0);
+        order.setTotal(0.0);
 
-            // Associer l'utilisateur à la commande
-            order.setUser(user);
-            order.setStatus("pending");
-            order.setQuantite(0);
-            order.setTotal(0.0);
+        // Enregistrer la commande pour obtenir un ID
+        Order savedOrder = orderRepository.save(order);
 
-            // Enregistrer l'ordre d'abord pour obtenir un ID
-            Order savedOrder = orderRepository.save(order);
+        double total = 0.0;
+        int totalQuantite = 0;
 
-            double total = 0.0;
-            int totalQuantite = 0;
-            for (OrderLine line : lines) {
-                if (line.getArticle() == null || line.getArticle().getId() == null) {
-                    throw new RuntimeException("Article ID is required for each order line.");
-                }
-
-                Article article = articleRepository.findById(line.getArticle().getId())
-                    .orElseThrow(() -> new RuntimeException("Article not found"));
-
-                line.setArticle(article);
-                line.setOrder(savedOrder);
-
-                total += line.getQuantity() * article.getPrix();
-                totalQuantite += line.getQuantity();
-
-                orderLineRepository.save(line);
-                savedOrder.getOrderLines().add(line);
+        for (OrderLine line : lines) {
+            if (line.getArticle() == null || line.getArticle().getId() == null) {
+                throw new RuntimeException("Article ID is required for each order line.");
             }
 
+            Article article = articleRepository.findById(line.getArticle().getId())
+                .orElseThrow(() -> new RuntimeException("Article not found"));
 
-            savedOrder.setTotal(total);
-            savedOrder.setQuantite(totalQuantite);
+            // ✅ Vérifier le stock disponible
+            if (article.getStock() < line.getQuantity()) {
+                throw new RuntimeException("Stock insuffisant pour l'article: " + article.getNom());
+            }
 
-            return orderRepository.save(savedOrder); // mise à jour avec les totaux et lignes
+            // ✅ Décrémenter le stock
+            article.setStock(article.getStock() - line.getQuantity());
+            articleRepository.save(article); // mise à jour du stock en base
+
+            // Liaison et calculs
+            line.setArticle(article);
+            line.setOrder(savedOrder);
+
+            total += line.getQuantity() * article.getPrix();
+            totalQuantite += line.getQuantity();
+
+            orderLineRepository.save(line);
+            savedOrder.getOrderLines().add(line);
         }
-   
+
+        savedOrder.setTotal(total);
+        savedOrder.setQuantite(totalQuantite);
+
+        return orderRepository.save(savedOrder); // commande mise à jour avec les totaux
+    }
+
 
 
     // Méthode pour obtenir toutes les commandes
@@ -90,5 +131,13 @@ public class OrderService {
     // Méthode pour supprimer une commande
     public void deleteOrder(Long orderId) {
         orderRepository.deleteById(orderId);
+    }
+    
+    public Order updateOrderStatus(Long orderId, String newStatus) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+        
+        order.setStatus(newStatus);
+        return orderRepository.save(order);
     }
 }

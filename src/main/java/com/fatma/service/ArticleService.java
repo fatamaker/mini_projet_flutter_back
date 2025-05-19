@@ -31,7 +31,9 @@ public class ArticleService {
 	        if (existingArticle != null) {
 	            existingArticle.setNom(a.getNom());
 	            existingArticle.setPrix(a.getPrix());
-
+	            existingArticle.setDescription(a.getDescription());
+	            existingArticle.setStock(a.getStock());
+	            
 	            return articlerepos.save(existingArticle);
 	        }
 	    }

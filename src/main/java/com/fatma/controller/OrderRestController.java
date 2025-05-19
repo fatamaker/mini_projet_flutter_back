@@ -49,4 +49,12 @@ public class OrderRestController {
         orderService.deleteOrder(id);
         return ResponseEntity.noContent().build();
     }
+    
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Order> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestParam String status) {
+        Order updatedOrder = orderService.updateOrderStatus(id, status);
+        return ResponseEntity.ok(updatedOrder);
+    }
 }
